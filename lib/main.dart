@@ -1,8 +1,19 @@
-import 'dart:math';
-
+import 'package:first_flutter_project/repositories/film_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:first_flutter_project/presentation/home_page/home_page.dart';
+import 'package:first_flutter_project/presentation/home_page/bloc/bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:first_flutter_project/components/locale/l10n/app_locale.dart';
+import 'package:first_flutter_project/presentation/locale_bloc/locale_bloc.dart';
+import 'package:first_flutter_project/presentation/locale_bloc/locale_state.dart';
+import 'dart:io';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:first_flutter_project/presentation/like_bloc/like_bloc.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await Hive.openBox('favorites');
   runApp(const MyApp());
 }
 
@@ -11,69 +22,42 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightGreenAccent),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Саушкина К. С. МОАИСбд-31'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-  Color _color = Colors.orangeAccent;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-      _color = Color((Random().nextDouble() * 0xFFFFFF).toInt()).withOpacity(1.0);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: _color,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            if (_counter > 10)
-              Text (
-                'Why are you clicking?',
-                style: Theme.of(context).textTheme.headlineMedium,
-              )
-          ],
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<LocaleBloc>(
+          lazy: false,
+          create: (context) => LocaleBloc(Locale(Platform.localeName)),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter, //увеличение счетчика
-        tooltip: 'Increment',
-        child: const Icon(Icons.local_fire_department_sharp),
-        backgroundColor: _color,
+        BlocProvider<LikeBloc>(
+          lazy: false,
+          create: (_) => LikeBloc(),
+        ),
+      ],
+      child: BlocBuilder<LocaleBloc, LocaleState>(
+        builder: (context, state) {
+          return MaterialApp(
+            title: 'Flutter Demo',
+            locale: state.currentLocale,
+            localizationsDelegates: AppLocale.localizationsDelegates,
+            supportedLocales: AppLocale.supportedLocales,
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightGreenAccent),
+              useMaterial3: true,
+            ),
+            home: RepositoryProvider<FilmRepository>(
+              lazy: true,
+              create: (_) => FilmRepository(),
+              child: BlocProvider<HomeBloc>(
+                lazy: false,
+                create: (context) => HomeBloc(context.read<FilmRepository>()),
+                child: const MyHomePage(title: 'Саушкина К.С. МОАИСбд-31'),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
+
 }
